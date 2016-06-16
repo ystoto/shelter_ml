@@ -25,7 +25,7 @@ use_ELU = False
 reuse_model_with_weight = False
 batch_size = 128
 nb_classes = 5
-nb_epoch = 20
+nb_epoch = 100
 ###################
 
 def ageofyear(x):
@@ -36,13 +36,13 @@ def ageofyear(x):
     if len(y) <= 1:
         return 0
     elif 'year' in y[1]:
-        return int(y[0]) * 365 / 90 + 300
+        return int(y[0]) * 365
     elif 'month' in y[1]:
-        return int(y[0]) * (365 / 12) / 90 + 1000
+        return int(y[0]) * (365 / 12)
     elif 'week' in y[1]:
-        return int(y[0]) * 7 / 90 + 100# +100 to avoid being zero
+        return int(y[0]) * 7# +100 to avoid being zero
     elif 'day' in y[1]:
-        return int(y[0]) / 90 + 500 # +500 to avoid being zero
+        return int(y[0]) # +500 to avoid being zero
 
 def split_slash(x):
     if ('Mix' in x):
@@ -65,12 +65,19 @@ def arrange_test_data(path, begin, end):
     data.fillna('', inplace=True)
     ######## TODO: Adjust column ####################
     if (True):
-        #data['IsMix'] = data['Breed'].str.contains('mix', case=False).astype(int)
+        data['IsMix'] = data['Breed'].str.contains('mix', case=False).astype(int)
         data['Breed2'] = data['Breed'].map(split_slash).fillna(value=0)
         data['Breed'] = data['Breed'].map(
             lambda x: ((x.split(' Mix')[0]).split('/')[0])
         )
 
+        data['IsTabby'] = data['Color'].str.contains('Tabby', case=False).astype(int)
+        data['Color'] = data['Color'].map(
+            lambda x: (x.replace(' ', ''))
+        )
+        data['Color'] = data['Color'].map(
+            lambda x: (x.replace('Tabby', ''))
+        )
         data['Color2'] = data['Color'].map(split_slash).fillna(value=0)
         data['Color'] = data['Color'].map(
             lambda x: (x.split('/')[0])
@@ -92,9 +99,22 @@ def arrange_test_data(path, begin, end):
             lambda x: pd.tslib.Timestamp(x).month
         ).fillna(value=0)
 
-        data['Year'] = data['DateTime'].map(
-            lambda x: pd.tslib.Timestamp(x).year
+        #data['Year'] = data['DateTime'].map(
+        #    lambda x: pd.tslib.Timestamp(x).year
+        #).fillna(value=0)
+
+        data['Day'] = data['DateTime'].map(
+            lambda x: pd.tslib.Timestamp(x).dayofyear + ((pd.tslib.Timestamp(x).year - 2010) * 365)
         ).fillna(value=0)
+
+        data['Hour'] = data['DateTime'].map(
+            lambda x: pd.tslib.Timestamp(x).hour
+        ).fillna(value=0)
+
+        data['Weekday'] = data['DateTime'].map(
+            lambda x: pd.tslib.Timestamp(x).dayofweek
+        ).fillna(value=0)
+
 
     target_to_remove= ['ID']
     target_to_remove.append('Name')
@@ -114,9 +134,6 @@ def arrange_test_data(path, begin, end):
     if 'AnimalID' in data.columns:
         target_to_remove.remove('ID')
         target_to_remove.append('AnimalID')
-    #print(target_to_remove.
-
-
 
     arranged_test_data = data.drop(target_to_remove, axis=1)
     arranged_test_data = arranged_test_data.reset_index(drop=True)
@@ -257,7 +274,7 @@ if (reuse_model_with_weight):
 else:
     model = Sequential()
 
-    model.add(Dense(2048, input_shape=(len(X_train[0]),)))
+    model.add(Dense(8192, input_shape=(len(X_train[0]),)))
     if use_ELU:
         model.add(ELU(alpha=1.0))
     else:
@@ -265,7 +282,7 @@ else:
     if use_dropout:
         model.add(Dropout(0.2))
 
-    model.add(Dense(2048))
+    model.add(Dense(8192))
     if use_ELU:
         model.add(ELU(alpha=1.0))
     else:
@@ -273,13 +290,14 @@ else:
     if use_dropout:
         model.add(Dropout(0.5))
 
-    model.add(Dense(2048))
+    model.add(Dense(8192))
     if use_ELU:
         model.add(ELU(alpha=1.0))
     else:
         model.add(Activation('relu'))
     if use_dropout:
         model.add(Dropout(0.5))
+
 
     model.add(Dense(5))
     model.add(Activation('softmax'))
@@ -287,7 +305,7 @@ else:
     model.summary()
 
     model.compile(loss='categorical_crossentropy',
-                  optimizer=RMSprop(),
+                  optimizer=RMSprop(lr=0.000001, rho=0.9, epsilon=1e-08),
                   metrics=['accuracy'])
     print('----start fit-----')
     history = model.fit(X_train, Y_train, shuffle=True,
