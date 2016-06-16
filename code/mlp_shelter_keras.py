@@ -20,6 +20,8 @@ from keras.utils import np_utils
 
 ### Configuration ###############
 use_onehot = True
+use_dropout = True
+use_ELU = False
 reuse_model_with_weight = False
 batch_size = 128
 nb_classes = 5
@@ -104,7 +106,6 @@ def arrange_test_data(path, begin, end):
     #target_to_remove.append('Color')
     ############################
 
-    #target_to_remove.= ['ID', 'DateTime']
     if 'OutcomeType' in data.columns:
         result = data['OutcomeType'].copy()
         target_to_remove.append('OutcomeType')
@@ -135,6 +136,10 @@ def generateDict(dictionary, table):
                 dictionary[columnHeader] = dict()
             if (None == dictionary[columnHeader].get(col, None)):
                 dictionary[columnHeader][col] = len(dictionary[columnHeader]) #  0, 1, 2,,,
+    print('--------------')
+    for col in dictionary:
+        print(col, " : ", len(dictionary[col]))
+    print('--------------')
     return dictionary
 
 def map_to_float(dictionary, table):
@@ -251,15 +256,31 @@ if (reuse_model_with_weight):
                   metrics=['accuracy'])
 else:
     model = Sequential()
-    model.add(Dense(1024, input_shape=(len(X_train[0]),)))
-    model.add(ELU(alpha=1.0))
-    model.add(Dropout(0.2))
-    model.add(Dense(1024))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.8))
-    model.add(Dense(1024))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.8))
+
+    model.add(Dense(2048, input_shape=(len(X_train[0]),)))
+    if use_ELU:
+        model.add(ELU(alpha=1.0))
+    else:
+        model.add(Activation('relu'))
+    if use_dropout:
+        model.add(Dropout(0.2))
+
+    model.add(Dense(2048))
+    if use_ELU:
+        model.add(ELU(alpha=1.0))
+    else:
+        model.add(Activation('relu'))
+    if use_dropout:
+        model.add(Dropout(0.5))
+
+    model.add(Dense(2048))
+    if use_ELU:
+        model.add(ELU(alpha=1.0))
+    else:
+        model.add(Activation('relu'))
+    if use_dropout:
+        model.add(Dropout(0.5))
+
     model.add(Dense(5))
     model.add(Activation('softmax'))
 
